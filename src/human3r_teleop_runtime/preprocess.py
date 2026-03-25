@@ -4,9 +4,11 @@ import cv2
 import torch
 import torch.nn.functional as F
 
+from .geometry import get_camera_parameters
+
 
 class FastPreprocessor:
-    def __init__(self, device: str, size: int, img_res: Optional[int], get_camera_parameters_fn):
+    def __init__(self, device: str, size: int, img_res: Optional[int], get_camera_parameters_fn=get_camera_parameters):
         self.device = device
         self.size = size
         self.img_res = img_res

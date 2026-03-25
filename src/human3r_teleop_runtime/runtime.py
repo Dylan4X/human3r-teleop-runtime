@@ -4,15 +4,13 @@ import torch
 from einops import rearrange
 
 from .export import RichWorldCoordinateExporter
+from .geometry import get_camera_parameters
+from .ops import apply_threshold, log_optimal_transport, nms, unpad_uv
 from .preprocess import FastPreprocessor
 
 
 class Human3RStreamer:
     def __init__(self, model, device="cuda", size=256, use_ttt3r=False, tf32=False):
-        from dust3r.smpl_model import apply_threshold, nms
-        from dust3r.utils.geometry import get_camera_parameters
-        from dust3r.utils.image import log_optimal_transport, unpad_uv
-
         self.model = model
         self.device = device
         self.size = size

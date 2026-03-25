@@ -3,6 +3,9 @@ from typing import Any, Optional
 import roma
 import torch
 
+from .geometry import geotrf
+from .ops import estimate_focal_knowing_depth, pose_encoding_to_camera
+
 
 RICH_JOINT_INDEX = {
     "pelvis": 0,
@@ -65,10 +68,6 @@ class RichWorldCoordinateExporter:
 
     @torch.inference_mode()
     def export(self, frame_idx: int, pred: Optional[dict[str, Any]]) -> dict[str, Any]:
-        from dust3r.post_process import estimate_focal_knowing_depth
-        from dust3r.utils.camera import pose_encoding_to_camera
-        from dust3r.utils.geometry import geotrf
-
         result = {
             "frame_id": int(frame_idx),
             "joint_schema": RICH_JOINT_NAMES,
