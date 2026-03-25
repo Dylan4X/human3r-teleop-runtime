@@ -1,91 +1,80 @@
 # human3r-teleop-runtime
 
-A cleaner runtime wrapper around upstream Human3R for teleoperation and remote control use cases.
+这是一个面向遥操作/远程控制场景的 Human3R 运行时封装仓库。
 
-This repo is intentionally narrow:
+它的目标不是替代上游 Human3R，也不是彻底与上游解耦，而是把在线推理、输入预处理、结果导出和网络服务这几部分单独整理出来，形成一个更干净、更适合集成的运行时层。
 
-- online frame-by-frame Human3R inference
-- stable world-coordinate joint export
-- a socket server for remote clients
-- a single adapter layer that isolates upstream Human3R coupling
+这个仓库后续适合作为：
 
-It is not a training repo, evaluation repo, or demo collection.
+- 独立 GitHub 仓库
+- 更大遥操作框架中的 submodule
 
-## Why this repo exists
+## 这个仓库包含什么
 
-The original Human3R project is great for research, but for teleoperation integration it currently contains too many unrelated parts:
+- 单帧输入预处理
+- Human3R 的在线递归推理状态封装
+- 世界坐标系人体关节导出
+- 简单的 TCP socket 服务端
+- 对上游 Human3R 的统一适配入口
 
-- training code
-- evaluation code
-- visualization/demo scripts
-- one-off experiments
-- repo-internal imports that are hard to expose cleanly to another project
+## 这个仓库不包含什么
 
-This repo is meant to be a smaller integration layer that can later live as:
+- 训练代码
+- 评测脚本
+- 数据集预处理
+- 模型权重
+- 大体积资源文件
 
-- a standalone GitHub repo
-- a submodule inside a larger teleoperation framework
-
-## Scope
-
-This repo currently owns:
-
-- runtime model loading through a thin upstream adapter
-- single-frame preprocessing for online inference
-- recurrent streaming inference state
-- world-coordinate joint export in JSON-friendly format
-- a TCP socket inference server
-
-This repo intentionally does not own:
-
-- Human3R model training
-- Human3R evaluation scripts
-- dataset preprocessing
-- checkpoint hosting
-- SMPL / SMPL-X asset hosting
-
-## Current structure
+## 目录结构
 
 ```text
 src/human3r_teleop_runtime/
-  upstream.py       # all upstream Human3R path/import coupling
-  preprocess.py     # online frame preprocessing
-  runtime.py        # recurrent Human3R streamer
-  export.py         # world-coordinate joint export
-  server.py         # socket server implementation
-  socket_server.py  # CLI entrypoint
+  upstream.py
+  preprocess.py
+  runtime.py
+  export.py
+  server.py
+  socket_server.py
 ```
 
-## Upstream dependency model
+各模块职责如下：
 
-This repo does not try to fully detach from Human3R.
+- `upstream.py`
+  统一处理对上游 Human3R 的路径和导入依赖。
+- `preprocess.py`
+  负责把单帧图像整理成 Human3R 在线推理所需输入。
+- `runtime.py`
+  封装在线递归推理主逻辑。
+- `export.py`
+  将模型输出整理为更稳定的世界坐标系关节结果。
+- `server.py`
+  提供 socket 推理服务封装。
+- `socket_server.py`
+  提供命令行启动入口。
 
-Instead, it keeps upstream dependency explicit and concentrated:
+## 与上游 Human3R 的关系
 
-- `human3r_teleop_runtime.upstream` is the main integration boundary
-- the repo still depends on upstream `dust3r` / `croco` / SMPL-related internals
-- model checkpoints remain external
+这个仓库目前仍然依赖上游 Human3R 的内部实现，因此它更准确的定位是：
 
-In practice, this means the repo is "cleaner" rather than "fully standalone".
+“面向集成的运行时封装层”，而不是“完全独立的新实现”。
 
-## What is still required from upstream Human3R
+运行时需要能访问一个上游 Human3R 仓库，并通过以下两种方式之一指定：
 
-Set `HUMAN3R_ROOT` to an upstream Human3R checkout that contains at least:
+- 设置环境变量 `HUMAN3R_ROOT`
+- 启动时传入 `--upstream-root`
+
+上游仓库至少需要包含这些内容：
 
 - `add_ckpt_path.py`
 - `src/dust3r/...`
 - `src/croco/...`
 - `src/models/...`
 
-Typical example:
+当前对上游的依赖被尽量集中在 `human3r_teleop_runtime.upstream` 中，目的是让上层项目尽量不要直接依赖零散的 Human3R 脚本。
 
-```bash
-export HUMAN3R_ROOT=/amax/xuedingrong/projects/Human3R
-```
+## 本仓库自己的 Python 依赖
 
-## Runtime dependencies in this repo
-
-Direct Python dependencies:
+当前直接依赖如下：
 
 - `torch`
 - `opencv-python`
@@ -93,13 +82,13 @@ Direct Python dependencies:
 - `roma`
 - `einops`
 
-These are declared in `pyproject.toml`.
+这些依赖已经写在 `pyproject.toml` 中。
 
-## Runtime dependencies that still come from upstream Human3R
+## 仍然来自上游 Human3R 的依赖
 
-This repo still relies on upstream implementations for:
+目前这个仓库在运行时仍然会使用上游 Human3R 中的若干模块，例如：
 
-- `dust3r.model.ARCroco3DStereo`
+- `dust3r.model`
 - `dust3r.utils.camera`
 - `dust3r.utils.geometry`
 - `dust3r.utils.image`
@@ -107,51 +96,164 @@ This repo still relies on upstream implementations for:
 - `dust3r.post_process`
 - `dust3r.smpl_model`
 
-So if upstream Human3R changes internal APIs, this repo may also need updates.
+因此如果上游 Human3R 的内部接口发生变化，这个仓库也可能需要同步调整。
 
-## Checkpoints and large files
+## 关于模型权重
 
-Checkpoints are intentionally not stored in this repo.
+模型权重不应提交到本仓库中。
 
-That includes:
+建议做法是：
 
-- Human3R `.pth` weights
-- large exported assets
-- SMPL/SMPL-X archives
+- 权重单独存放
+- 启动服务时通过参数传入权重路径
 
-You should pass checkpoint paths from outside, for example:
+这样仓库本身会保持更干净，也更适合公开或作为子模块维护。
 
-```bash
-python -m human3r_teleop_runtime.socket_server \
-  --model-path /amax/xuedingrong/projects/Human3R/src/human3r_672S.pth \
-  --port 19999 \
-  --upstream-root /amax/xuedingrong/projects/Human3R
-```
+## 基本用法
 
-## Basic usage
-
-Example server launch:
+示例：
 
 ```bash
-export HUMAN3R_ROOT=/amax/xuedingrong/projects/Human3R
+export HUMAN3R_ROOT=/path/to/Human3R
 
 python -m human3r_teleop_runtime.socket_server \
-  --model-path /amax/xuedingrong/projects/Human3R/src/human3r_672S.pth \
+  --model-path /path/to/checkpoints/human3r_model.pth \
+  --upstream-root /path/to/Human3R \
   --host 127.0.0.1 \
   --port 19999 \
   --device cuda \
   --size 256
 ```
 
-## Network protocol
+## 推荐使用流程
 
-Current socket protocol is intentionally simple:
+建议按下面的顺序使用：
 
-- client sends a 4-byte big-endian payload length
-- client sends one JPEG-encoded frame
-- server returns one JSON line per processed frame
+1. 准备上游 Human3R 仓库
+2. 准备可用的 Human3R 权重
+3. 设置 `HUMAN3R_ROOT` 或传入 `--upstream-root`
+4. 启动 `socket_server`
+5. 让上层客户端按协议发送 JPEG 帧并接收 JSON 结果
 
-Returned JSON includes fields like:
+## 环境准备
+
+这个仓库本身只声明了较小的一组直接依赖，但实际运行仍然依赖上游 Human3R 的环境。
+
+因此更稳妥的做法通常是：
+
+- 直接使用上游 Human3R 已经能正常推理的 Python 环境
+- 在这个环境里安装本仓库
+
+例如：
+
+```bash
+pip install -e .
+```
+
+如果上游 Human3R 依赖尚未安装完整，即使本仓库自身可以成功安装，运行时也仍然可能报错。
+
+## 启动服务
+
+最常见的启动方式：
+
+```bash
+python -m human3r_teleop_runtime.socket_server \
+  --model-path /path/to/checkpoints/human3r_model.pth \
+  --upstream-root /path/to/Human3R \
+  --host 127.0.0.1 \
+  --port 19999 \
+  --device cuda \
+  --size 256
+```
+
+常用参数说明：
+
+- `--model-path`
+  Human3R 权重路径。
+- `--upstream-root`
+  上游 Human3R 仓库根目录。如果已经设置 `HUMAN3R_ROOT`，这个参数可以不传。
+- `--host`
+  服务监听地址。
+- `--port`
+  服务监听端口。
+- `--device`
+  推理设备，通常为 `cuda` 或 `cpu`。
+- `--size`
+  输入缩放尺寸，目前默认设计为在线推理场景使用。
+- `--use-ttt3r`
+  是否启用相关时序选项。
+- `--tf32`
+  在支持的 GPU 上启用 TF32。
+- `--warmup`
+  启动后先进行一次预热。
+- `--reset-on-new-client`
+  每次有新客户端连接时重置流式状态。
+
+## 与客户端的对接方式
+
+推荐的客户端工作流如下：
+
+1. 读取摄像头或视频流图像
+2. 将单帧编码为 JPEG
+3. 先发送 4 字节大端长度
+4. 再发送 JPEG 二进制内容
+5. 读取服务端返回的一行 JSON
+6. 从 JSON 中取出人体世界坐标结果
+
+## 返回结果说明
+
+当前返回结构以 `persons` 为核心，每个人通常包含：
+
+- `id`
+- `root_world`
+- `head_world`
+- `left_wrist_world`
+- `right_wrist_world`
+- `left_ankle_world`
+- `right_ankle_world`
+- `named_joints_world`
+- `joints_world`
+
+其中：
+
+- `named_joints_world` 更适合上层做稳定字段访问
+- `joints_world` 更适合调试或保留完整关节序列
+
+## 作为 submodule 使用的建议
+
+如果这个仓库后续作为更大遥操作框架的 submodule 使用，推荐做法是：
+
+1. 上层主项目负责管理整体环境
+2. 上层主项目通过配置提供：
+   - 上游 Human3R 路径
+   - 权重路径
+   - host / port
+   - 设备选择
+3. 上层只依赖本仓库暴露的运行时接口，不直接引用零散的上游实验脚本
+
+这样做的好处是：
+
+- 上游升级时影响面更小
+- 推理服务接口更稳定
+- 代码职责更清楚
+
+## 当前限制
+
+目前仍然存在这些限制：
+
+- 还没有彻底摆脱上游 `dust3r` 内部接口
+- 上游 Human3R 改动后，这里可能需要同步适配
+- 当前重点是在线推理和服务封装，不是通用 SDK
+
+## Socket 协议
+
+当前通信协议尽量保持简单：
+
+- 客户端先发送 4 字节的大端长度
+- 然后发送一帧 JPEG 编码图像
+- 服务端返回一行 JSON 结果
+
+返回结果中通常包含这些字段：
 
 - `frame_id`
 - `server_latency_sec`
@@ -160,22 +262,12 @@ Returned JSON includes fields like:
 - `root_world`
 - `head_world`
 
-## Intended integration style
+## 当前状态
 
-The expected integration pattern is:
+这还是第一版抽离结果，目标主要是：
 
-1. keep upstream Human3R in a separate checkout
-2. include this repo as a lighter runtime-focused submodule
-3. let upper-level teleoperation code depend on this repo instead of importing raw Human3R scripts
+- 减少与训练/评测/实验脚本的混杂
+- 给上层遥操作框架提供更清晰的运行时入口
+- 把对上游 Human3R 的依赖集中到更少的模块中
 
-## Current status
-
-This is an initial extraction, not the final architecture.
-
-The current goal is:
-
-- reduce clutter
-- isolate unstable upstream imports
-- provide clearer runtime entrypoints
-
-Future cleanup can further reduce coupling by wrapping more `dust3r` internals behind stable interfaces.
+目前它已经比直接引用原始仓库中的零散脚本更适合集成，但还不是最终定型版本。
