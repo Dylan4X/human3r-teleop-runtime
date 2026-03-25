@@ -5,6 +5,7 @@ import torch
 
 from .geometry import geotrf
 from .ops import estimate_focal_knowing_depth, pose_encoding_to_camera
+from .smpl import SMPLLayer
 
 
 RICH_JOINT_INDEX = {
@@ -35,8 +36,9 @@ def tensor3_to_list(x):
 
 
 class RichWorldCoordinateExporter:
-    def __init__(self, device: str):
+    def __init__(self, device: str, models_root: str | None = None):
         self.device = device
+        self.models_root = models_root
         self.smpl_layer = None
         self.num_betas = None
         self.intrinsics_cache = {}
@@ -44,10 +46,9 @@ class RichWorldCoordinateExporter:
     def _ensure_smpl_layer(self, num_betas: int):
         if self.smpl_layer is not None and self.num_betas == num_betas:
             return
-        from dust3r.utils.smpl_layer import SMPL_Layer
-
-        self.smpl_layer = SMPL_Layer(
-            type="smplx",
+        self.smpl_layer = SMPLLayer(
+            model_root=self.models_root,
+            model_type="smplx",
             gender="neutral",
             num_betas=num_betas,
             kid=False,

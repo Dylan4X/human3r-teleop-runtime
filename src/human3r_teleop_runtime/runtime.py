@@ -10,7 +10,7 @@ from .preprocess import FastPreprocessor
 
 
 class Human3RStreamer:
-    def __init__(self, model, device="cuda", size=256, use_ttt3r=False, tf32=False):
+    def __init__(self, model, device="cuda", size=256, use_ttt3r=False, tf32=False, models_root: str | None = None):
         self.model = model
         self.device = device
         self.size = size
@@ -25,7 +25,7 @@ class Human3RStreamer:
         self.rgb_mean = torch.tensor([0.485, 0.456, 0.406], device=device).view(1, 3, 1, 1)
         self.rgb_std = torch.tensor([0.229, 0.224, 0.225], device=device).view(1, 3, 1, 1)
         self.transport_alpha = torch.tensor(-10.0, device=device)
-        self.world_exporter = RichWorldCoordinateExporter(device=device)
+        self.world_exporter = RichWorldCoordinateExporter(device=device, models_root=models_root)
         self.preprocessor = FastPreprocessor(
             device=device,
             size=size,

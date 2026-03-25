@@ -9,7 +9,7 @@ import numpy as np
 import torch
 
 from .runtime import Human3RStreamer
-from .upstream import load_human3r_model
+from .upstream import get_human3r_models_root, load_human3r_model
 
 
 def recv_exact(conn: socket.socket, n: int):
@@ -64,12 +64,14 @@ class SocketInferenceServer:
             device=self.config.device,
             upstream_root=self.config.upstream_root,
         )
+        models_root = str(get_human3r_models_root(self.config.upstream_root))
         self.streamer = Human3RStreamer(
             model=self.model,
             device=self.device,
             size=self.config.size,
             use_ttt3r=self.config.use_ttt3r,
             tf32=self.config.tf32,
+            models_root=models_root,
         )
 
     def maybe_warmup(self):

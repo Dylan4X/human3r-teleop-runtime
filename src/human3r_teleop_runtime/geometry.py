@@ -101,3 +101,17 @@ def get_camera_parameters(img_size, fov=60, p_x=None, p_y=None, device=torch.dev
         intrinsics[0, -1], intrinsics[1, -1] = img_size // 2, img_size // 2
 
     return intrinsics.unsqueeze(0).to(device)
+
+
+def perspective_projection(points, intrinsics):
+    projected = points / points[:, :, -1].unsqueeze(-1)
+    projected = torch.einsum("bij,bkj->bki", intrinsics, projected)
+    return projected[:, :, :2]
+
+
+def inverse_perspective_projection(points, intrinsics, distance):
+    points = torch.cat([points, torch.ones_like(points[..., :1])], -1)
+    points = torch.einsum("bij,bkj->bki", torch.inverse(intrinsics), points)
+    if distance is None:
+        return points
+    return points * distance

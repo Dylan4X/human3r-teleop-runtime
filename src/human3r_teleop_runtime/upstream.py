@@ -53,3 +53,11 @@ def load_human3r_model(
     model = ARCroco3DStereo.from_pretrained(model_path).to(device)
     model.eval()
     return model, device
+
+
+def get_human3r_models_root(upstream_root: str | None = None) -> Path:
+    root = _resolve_upstream_root(upstream_root)
+    models_root = root / "src" / "models"
+    if not models_root.exists():
+        raise FileNotFoundError(models_root)
+    return models_root
